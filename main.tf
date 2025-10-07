@@ -76,41 +76,16 @@ module "compute" {
   depends_on = [module.security, module.networking]
 }
 
-# # Kubernetes Credentials Module - Deploy separately after infrastructure
-# module "kubernetes_credentials" {
-#   source = "./modules/kubernetes-credentials"
+# Kubernetes Credentials Module - Deploy separately after infrastructure
+module "kubernetes_credentials" {
+  source = "./modules/kubernetes-credentials"
 
-#   master_public_ip       = module.compute.master_public_ip
-#   admin_username         = var.admin_username
-#   ssh_private_key_path   = "~/.ssh/id_rsa"
-#   kubeconfig_output_path = "${path.module}/kubeconfig"
+  master_public_ip       = module.compute.master_public_ip
+  admin_username         = var.admin_username
+  ssh_private_key_path   = "~/.ssh/id_rsa"
+  kubeconfig_output_path = "${path.module}/kubeconfig"
 
-#   depends_on = [module.compute]
-# }
+  depends_on = [module.compute]
+}
 
-# module "kubernetes" {
-#   source = "./modules/kubernetes"
-
-#   k3s_api_server_url     = "https://${module.compute.master_public_ip}:6443"
-#   k3s_token              = var.k3s_token
-#   kubeconfig_path        = module.kubernetes_credentials.kubeconfig_path
-#   k3s_cluster_ready      = true 
-
-#   enable_argocd          = true
-
-#   # Monitoring Configuration
-#   enable_monitoring      = true
-#   grafana_admin_username = var.grafana_admin_username
-#   grafana_admin_password = var.grafana_admin_password
-  
-#   # Rancher Configuration
-#   rancher_admin_username = var.rancher_admin_username
-#   rancher_admin_password = var.rancher_admin_password
-  
-#   domain_name            = var.domain_name
-#   master_public_ip       = module.compute.master_public_ip
-#   letsencrypt_email      = var.letsencrypt_email
-
-#   depends_on = [module.kubernetes_credentials]
-# }
 
