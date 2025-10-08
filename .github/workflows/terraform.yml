@@ -4,11 +4,9 @@ on:
   push:
     branches: 
       - main
-      - master
   pull_request:
     branches:
       - main
-      - master
   workflow_dispatch:
     inputs:
       action:
@@ -97,139 +95,33 @@ jobs:
         echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
         echo "✅ Azure environment variables configured"
 
-    # Optional: Azure CLI Login for verification (not required for Terraform)
-    - name: Azure CLI Login (Verification)
-      run: |
-        az login --service-principal \
-          --username ${{ secrets.AZURE_CLIENT_ID }} \
-          --password ${{ secrets.AZURE_CLIENT_SECRET }} \
-          --tenant ${{ secrets.AZURE_TENANT_ID }}
-        
-        az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        az account show
-      continue-on-error: true
-
     # Terraform Init
     - name: Terraform Init
+      id: init
       run: terraform init
 
     # Terraform Validate
     - name: Terraform Validate
       id: validate
-      run: |
-        echo "🔍 Validating Terraform configuration..."
-        terraform validate -json > validation.json 2>&1 || true
-        if terraform validate; then
-          echo "✅ Terraform validation passed"
-        else
-          echo "❌ Terraform validation failed"
-          echo "validation=failed" >> $GITHUB_OUTPUT
-          cat validation.json
-          exit 1
-        fi
+      run: terraform validate
 
     # Terraform Plan
     - name: Terraform Plan
       id: plan
-      run: |
-        echo "🔍 Running Terraform Plan..."
-        terraform plan -input=false -no-color -out=tfplan -detailed-exitcode
-        echo "plan_exitcode=$?" >> $GITHUB_OUTPUT
-      continue-on-error: true
-
-    # Show Plan Results
-    - name: Plan Results
-      if: always()
-      run: |
-        if [ "${{ steps.plan.outcome }}" = "success" ]; then
-          echo "✅ Terraform Plan succeeded"
-          if [ -f tfplan ]; then
-            echo "📄 Plan file created successfully"
-          else
-            echo "⚠️ Plan succeeded but no plan file found"
-          fi
-        else
-          echo "❌ Terraform Plan failed"
-          echo "Debug information:"
-          echo "Plan outcome: ${{ steps.plan.outcome }}"
-          echo "Working directory contents:"
-          ls -la
-          echo "Terraform version:"
-          terraform version
-          echo "Provider status:"
-          terraform providers
-        fi
-
-    # Upload Plan Artifact
-    - name: Upload Terraform Plan
-      uses: actions/upload-artifact@v4
-      if: steps.plan.outcome == 'success' && hashFiles('tfplan') != ''
-      with:
-        name: terraform-plan
-        path: tfplan
-        retention-days: 5
-
-    # Comment PR with Plan (for pull requests)
-    - name: Update Pull Request
-      uses: actions/github-script@v7
-      if: github.event_name == 'pull_request'
-      env:
-        PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        script: |
-          const output = `#### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
-          
-          <details><summary>Show Plan</summary>
-          
-          \`\`\`\n
-          ${process.env.PLAN}
-          \`\`\`
-          
-          </details>
-          
-          *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
-          
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: output
-          })
+      run: terraform plan
 
     # Terraform Apply (only on main/master branch or manual workflow)
     - name: Terraform Apply
-      if: |
-        steps.plan.outcome == 'success' &&
-        (
-          (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && 
-          github.event_name == 'push' ||
-          (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
-        )
-      run: |
-        echo "🚀 Applying Terraform configuration..."
-        if [ -f tfplan ]; then
-          terraform apply -input=false -auto-approve tfplan
-        else
-          echo "❌ No plan file found. Plan must have failed."
-          exit 1
-        fi
+      id: apply
+      run : terraform apply --auto-approve
 
     # Terraform Destroy (only on manual workflow)
     - name: Terraform Destroy
+      id: destroy
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
       run: |
         echo "💥 Destroying Terraform infrastructure..."
         terraform destroy -input=false -auto-approve
-
-    # Save Terraform State (optional - for backup)
-    - name: Upload Terraform State
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: terraform-state
-        path: terraform.tfstate*
-        retention-days: 30
 
     # Clean up sensitive files
     - name: Cleanup
