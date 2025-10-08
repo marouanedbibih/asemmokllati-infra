@@ -30,9 +30,9 @@ terraform {
 provider "azurerm" {
   features {}
   
-  # Use Service Principal authentication for CI/CD
-  # These will be provided via environment variables:
+  # Service Principal Authentication via Environment Variables:
   # ARM_CLIENT_ID, ARM_CLIENT_SECRET, ARM_SUBSCRIPTION_ID, ARM_TENANT_ID
+  # These are automatically detected by the provider when available
 }
 
 

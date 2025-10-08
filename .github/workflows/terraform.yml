@@ -88,8 +88,17 @@ jobs:
         
         echo "✅ terraform.tfvars created successfully"
 
-    # Azure Login using service principal
-    - name: Azure Login
+    # Setup Azure Authentication Environment Variables
+    - name: Setup Azure Environment
+      run: |
+        echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+        echo "ARM_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
+        echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+        echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+        echo "✅ Azure environment variables configured"
+
+    # Optional: Azure CLI Login for verification (not required for Terraform)
+    - name: Azure CLI Login (Verification)
       run: |
         az login --service-principal \
           --username ${{ secrets.AZURE_CLIENT_ID }} \
@@ -98,6 +107,7 @@ jobs:
         
         az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         az account show
+      continue-on-error: true
 
     # Terraform Init
     - name: Terraform Init
