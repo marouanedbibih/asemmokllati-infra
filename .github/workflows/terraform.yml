@@ -141,12 +141,24 @@ jobs:
     # Terraform Plan
     - name: Terraform Plan
       id: plan
-      run: terraform plan
+      if: github.event.inputs.action != 'destroy'
+      run: |
+        echo "📋 Creating Terraform execution plan..."
+        terraform plan -input=false -no-color -out=tfplan
 
     # Terraform Apply (only on main/master branch or manual workflow)
     - name: Terraform Apply
       id: apply
-      run : terraform apply --auto-approve
+      if: |
+        steps.plan.outcome == 'success' &&
+        github.event.inputs.action != 'destroy' &&
+        (
+          (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
+        )
+      run: |
+        echo "🚀 Applying Terraform configuration..."
+        terraform apply -input=false -auto-approve tfplan
 
     # Terraform Destroy (only on manual workflow)
     - name: Terraform Destroy
