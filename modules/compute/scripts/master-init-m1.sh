@@ -4,8 +4,8 @@ set -e
 # Get custom token from Terraform template
 K3S_TOKEN="${k3s_token}"
 
-# Install K3s (initialize cluster with embedded etcd and custom token)
-curl -sfL https://get.k3s.io | K3S_TOKEN="$${K3S_TOKEN}" INSTALL_K3S_EXEC="server --cluster-init --token $${K3S_TOKEN}" sh -
+# Install K3s (initialize cluster with embedded etcd, custom token, and TLS SAN for load balancer)
+curl -sfL https://get.k3s.io | K3S_TOKEN="$${K3S_TOKEN}" INSTALL_K3S_EXEC="server --cluster-init --token $${K3S_TOKEN} --tls-san ${LOAD_BALANCER_IP}" sh -
 
 # Save the cluster token for verification
 echo "$${K3S_TOKEN}" > /tmp/k3s-token

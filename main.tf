@@ -87,16 +87,22 @@ module "compute" {
   depends_on = [module.security, module.networking]
 }
 
-# # Kubernetes Credentials Module - Deploy separately after infrastructure
-# module "kubernetes_credentials" {
-#   source = "./modules/kubernetes-credentials"
+# Kubernetes Credentials Module - Connect via Load Balancer SSH to Master 1
+module "kubernetes_credentials" {
+  source = "./modules/kubernetes-credentials"
 
-#   master_public_ip       = module.compute.master_public_ip
-#   admin_username         = var.admin_username
-#   ssh_private_key_path   = "~/.ssh/id_rsa"
-#   kubeconfig_output_path = "${path.module}/kubeconfig"
+  master_public_ip       = module.networking.master_lb_public_ip
+  admin_username         = var.admin_username
+  ssh_port              = 2221  # SSH NAT rule port for Master 1
+  ssh_private_key_path   = "~/.ssh/id_rsa"
+  kubeconfig_output_path = "${path.module}/kubeconfig"
 
-#   depends_on = [module.compute]
-# }
+  depends_on = [module.compute]
+}
+
+# Azure Key Vault secrets configuration removed
+# Secrets can be managed manually or through external tools if needed
+
+
 
 

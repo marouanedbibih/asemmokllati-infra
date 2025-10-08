@@ -5,7 +5,7 @@ set -e
 FIRST_MASTER_IP="${FIRST_MASTER_IP}"
 K3S_TOKEN="${k3s_token}"
 
-curl -sfL https://get.k3s.io | K3S_TOKEN="$${K3S_TOKEN}" INSTALL_K3S_EXEC="server --server https://$${FIRST_MASTER_IP}:6443 --token $${K3S_TOKEN}" sh -
+curl -sfL https://get.k3s.io | K3S_TOKEN="$${K3S_TOKEN}" INSTALL_K3S_EXEC="server --server https://$${FIRST_MASTER_IP}:6443 --token $${K3S_TOKEN} --tls-san ${LOAD_BALANCER_IP}" sh -
 
 # Install Helm
 curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash

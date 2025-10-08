@@ -19,17 +19,5 @@ variable "tags" {
   default     = {}
 }
 
-# variable "key_vault_name" {
-#   description = "Name of the Azure Key Vault"
-#   type        = string
-# }
+# Azure Key Vault variables removed
 
-# variable "tenant_id" {
-#   description = "Azure AD tenant ID"
-#   type        = string
-# }
-
-# variable "admin_object_id" {
-#   description = "Object ID of the admin user/service principal for Key Vault access"
-#   type        = string
-# }
