@@ -115,19 +115,55 @@ jobs:
 
     # Terraform Validate
     - name: Terraform Validate
-      run: terraform validate
+      id: validate
+      run: |
+        echo "🔍 Validating Terraform configuration..."
+        terraform validate -json > validation.json 2>&1 || true
+        if terraform validate; then
+          echo "✅ Terraform validation passed"
+        else
+          echo "❌ Terraform validation failed"
+          echo "validation=failed" >> $GITHUB_OUTPUT
+          cat validation.json
+          exit 1
+        fi
 
     # Terraform Plan
     - name: Terraform Plan
       id: plan
       run: |
-        terraform plan -input=false -no-color -out=tfplan
+        echo "🔍 Running Terraform Plan..."
+        terraform plan -input=false -no-color -out=tfplan -detailed-exitcode
+        echo "plan_exitcode=$?" >> $GITHUB_OUTPUT
       continue-on-error: true
+
+    # Show Plan Results
+    - name: Plan Results
+      if: always()
+      run: |
+        if [ "${{ steps.plan.outcome }}" = "success" ]; then
+          echo "✅ Terraform Plan succeeded"
+          if [ -f tfplan ]; then
+            echo "📄 Plan file created successfully"
+          else
+            echo "⚠️ Plan succeeded but no plan file found"
+          fi
+        else
+          echo "❌ Terraform Plan failed"
+          echo "Debug information:"
+          echo "Plan outcome: ${{ steps.plan.outcome }}"
+          echo "Working directory contents:"
+          ls -la
+          echo "Terraform version:"
+          terraform version
+          echo "Provider status:"
+          terraform providers
+        fi
 
     # Upload Plan Artifact
     - name: Upload Terraform Plan
       uses: actions/upload-artifact@v4
-      if: steps.plan.outcome == 'success'
+      if: steps.plan.outcome == 'success' && hashFiles('tfplan') != ''
       with:
         name: terraform-plan
         path: tfplan
@@ -164,12 +200,20 @@ jobs:
     # Terraform Apply (only on main/master branch or manual workflow)
     - name: Terraform Apply
       if: |
-        (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && 
-        github.event_name == 'push' ||
-        (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
+        steps.plan.outcome == 'success' &&
+        (
+          (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && 
+          github.event_name == 'push' ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
+        )
       run: |
         echo "🚀 Applying Terraform configuration..."
-        terraform apply -input=false -auto-approve tfplan
+        if [ -f tfplan ]; then
+          terraform apply -input=false -auto-approve tfplan
+        else
+          echo "❌ No plan file found. Plan must have failed."
+          exit 1
+        fi
 
     # Terraform Destroy (only on manual workflow)
     - name: Terraform Destroy
