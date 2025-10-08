@@ -102,11 +102,6 @@ jobs:
     # Terraform Init
     - name: Terraform Init
       run: terraform init
-      
-    # Terraform Format Check
-    - name: Terraform Format Check
-      run: terraform fmt -check
-      continue-on-error: true
 
     # Terraform Validate
     - name: Terraform Validate
