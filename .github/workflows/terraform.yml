@@ -86,6 +86,9 @@ jobs:
         
         echo "✅ terraform.tfvars created successfully"
 
+    - name: Print terraform.tfvars
+      run: cat terraform.tfvars
+
     # Setup Azure Authentication Environment Variables
     - name: Setup Azure Environment
       run: |
