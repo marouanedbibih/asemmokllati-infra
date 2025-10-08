@@ -1,0 +1,191 @@
+name: 'Terraform Infrastructure Deployment'
+
+on:
+  push:
+    branches: 
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform Action'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+        - plan
+        - apply
+        - destroy
+
+env:
+  TF_VERSION: '1.5.7'
+  TF_IN_AUTOMATION: true
+  TF_INPUT: false
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    # Use bash shell for all run steps
+    defaults:
+      run:
+        shell: bash
+        working-directory: .
+
+    steps:
+    # Checkout the repository
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    # Setup Terraform
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+
+    # Create terraform.tfvars from GitHub secrets and variables
+    - name: Create terraform.tfvars
+      run: |
+        cat > terraform.tfvars << EOF
+        # Azure Configuration
+        azure_subscription_id = "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+        azure_tenant_id       = "${{ secrets.AZURE_TENANT_ID }}"
+        azure_client_id       = "${{ secrets.AZURE_CLIENT_ID }}"
+        azure_client_secret   = "${{ secrets.AZURE_CLIENT_SECRET }}"
+
+        # K3s Configuration
+        k3s_token = "${{ secrets.K3S_TOKEN }}"
+
+        # VM Configuration
+        admin_username = "${{ vars.ADMIN_USERNAME || 'azureuser' }}"
+        admin_password = "${{ secrets.ADMIN_PASSWORD }}"
+
+        # ArgoCD Configuration
+        argocd_admin_username = "${{ vars.ARGOCD_ADMIN_USERNAME || 'admin' }}"
+        argocd_admin_password = "${{ secrets.ARGOCD_ADMIN_PASSWORD }}"
+
+        # Rancher Configuration  
+        rancher_admin_username = "${{ vars.RANCHER_ADMIN_USERNAME || 'admin' }}"
+        rancher_admin_password = "${{ secrets.RANCHER_ADMIN_PASSWORD }}"
+
+        # Monitoring Configuration
+        enable_bitnami_monitoring = ${{ vars.ENABLE_BITNAMI_MONITORING || 'true' }}
+        grafana_admin_username = "${{ vars.GRAFANA_ADMIN_USERNAME || 'admin' }}"
+        grafana_admin_password = "${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
+
+        # Let's Encrypt Configuration
+        letsencrypt_email = "${{ vars.LETSENCRYPT_EMAIL }}"
+
+        # DNS Configuration
+        domain_name = "${{ vars.DOMAIN_NAME }}"
+        EOF
+        
+        echo "✅ terraform.tfvars created successfully"
+
+    # Azure Login using service principal
+    - name: Azure Login
+      run: |
+        az login --service-principal \
+          --username ${{ secrets.AZURE_CLIENT_ID }} \
+          --password ${{ secrets.AZURE_CLIENT_SECRET }} \
+          --tenant ${{ secrets.AZURE_TENANT_ID }}
+        
+        az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        az account show
+
+    # Terraform Init
+    - name: Terraform Init
+      run: terraform init
+      
+    # Terraform Format Check
+    - name: Terraform Format Check
+      run: terraform fmt -check
+      continue-on-error: true
+
+    # Terraform Validate
+    - name: Terraform Validate
+      run: terraform validate
+
+    # Terraform Plan
+    - name: Terraform Plan
+      id: plan
+      run: |
+        terraform plan -input=false -no-color -out=tfplan
+      continue-on-error: true
+
+    # Upload Plan Artifact
+    - name: Upload Terraform Plan
+      uses: actions/upload-artifact@v4
+      if: steps.plan.outcome == 'success'
+      with:
+        name: terraform-plan
+        path: tfplan
+        retention-days: 5
+
+    # Comment PR with Plan (for pull requests)
+    - name: Update Pull Request
+      uses: actions/github-script@v7
+      if: github.event_name == 'pull_request'
+      env:
+        PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const output = `#### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+          
+          <details><summary>Show Plan</summary>
+          
+          \`\`\`\n
+          ${process.env.PLAN}
+          \`\`\`
+          
+          </details>
+          
+          *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: output
+          })
+
+    # Terraform Apply (only on main/master branch or manual workflow)
+    - name: Terraform Apply
+      if: |
+        (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && 
+        github.event_name == 'push' ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
+      run: |
+        echo "🚀 Applying Terraform configuration..."
+        terraform apply -input=false -auto-approve tfplan
+
+    # Terraform Destroy (only on manual workflow)
+    - name: Terraform Destroy
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+      run: |
+        echo "💥 Destroying Terraform infrastructure..."
+        terraform destroy -input=false -auto-approve
+
+    # Save Terraform State (optional - for backup)
+    - name: Upload Terraform State
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: terraform-state
+        path: terraform.tfstate*
+        retention-days: 30
+
+    # Clean up sensitive files
+    - name: Cleanup
+      if: always()
+      run: |
+        rm -f terraform.tfvars
+        rm -f tfplan
+        echo "🧹 Cleanup completed"

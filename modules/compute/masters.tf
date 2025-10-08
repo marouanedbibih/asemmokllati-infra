@@ -87,10 +87,11 @@ resource "azurerm_linux_virtual_machine" "k3s_master_1" {
   }
 
   custom_data = base64encode(templatefile("${path.module}/scripts/master-init-m1.sh", {
-    admin_username = var.admin_username
-    admin_password = var.admin_password
-    k3s_token      = var.k3s_token
-    k3s_version    = var.k3s_version
+    admin_username   = var.admin_username
+    admin_password   = var.admin_password
+    k3s_token        = var.k3s_token
+    k3s_version      = var.k3s_version
+    LOAD_BALANCER_IP = var.master_lb_public_ip
   }))
 }
 
@@ -132,11 +133,12 @@ resource "azurerm_linux_virtual_machine" "k3s_master_2" {
   }
 
   custom_data = base64encode(templatefile("${path.module}/scripts/master-init-m2.sh", {
-    admin_username  = var.admin_username
-    admin_password  = var.admin_password
-    k3s_token       = var.k3s_token
-    k3s_version     = var.k3s_version
-    FIRST_MASTER_IP = azurerm_network_interface.master_1_nic.private_ip_address
+    admin_username   = var.admin_username
+    admin_password   = var.admin_password
+    k3s_token        = var.k3s_token
+    k3s_version      = var.k3s_version
+    FIRST_MASTER_IP  = azurerm_network_interface.master_1_nic.private_ip_address
+    LOAD_BALANCER_IP = var.master_lb_public_ip
   }))
 
   depends_on = [azurerm_linux_virtual_machine.k3s_master_1]

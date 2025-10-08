@@ -14,6 +14,7 @@ resource "null_resource" "wait_for_k3s" {
       for i in {1..12}; do
         if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
            -o ConnectTimeout=10 -o BatchMode=yes \
+           -p ${var.ssh_port} \
            -i ${var.ssh_private_key_path} \
            ${var.admin_username}@${var.master_public_ip} \
            'echo "SSH connection successful"' 2>/dev/null; then
@@ -34,6 +35,7 @@ resource "null_resource" "wait_for_k3s" {
       echo "⏳ Waiting for K3s service to be ready..."
       for i in {1..20}; do
         if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+           -p ${var.ssh_port} \
            -i ${var.ssh_private_key_path} \
            ${var.admin_username}@${var.master_public_ip} \
            'sudo systemctl is-active k3s' 2>/dev/null | grep -q "active"; then
@@ -54,6 +56,7 @@ resource "null_resource" "wait_for_k3s" {
       echo "⏳ Waiting for K3s API server..."
       for i in {1..20}; do
         if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+           -p ${var.ssh_port} \
            -i ${var.ssh_private_key_path} \
            ${var.admin_username}@${var.master_public_ip} \
            'sudo k3s kubectl get nodes' 2>/dev/null; then
@@ -99,6 +102,7 @@ resource "null_resource" "fetch_kubeconfig" {
       echo "⬇️  Downloading kubeconfig from master..."
       ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
         -o ConnectTimeout=30 \
+        -p ${var.ssh_port} \
         -i ${var.ssh_private_key_path} \
         ${var.admin_username}@${var.master_public_ip} \
         'sudo cat /etc/rancher/k3s/k3s.yaml' | \
@@ -206,4 +210,11 @@ EOF
   triggers = {
     kubeconfig_path = var.kubeconfig_output_path
   }
+}
+
+# Read kubeconfig file content after it's created
+data "external" "kubeconfig_content" {
+  program = ["bash", "-c", "echo '{\"content\": \"'$(cat ${var.kubeconfig_output_path} | base64 -w 0)'\"}'"]
+  
+  depends_on = [null_resource.fetch_kubeconfig]
 }

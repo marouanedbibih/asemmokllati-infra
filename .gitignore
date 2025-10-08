@@ -1,27 +1,237 @@
-# Sensitive files
-.env
-*.env
+# =============================================================================
+# TERRAFORM .GITIGNORE
+# =============================================================================
+
+# -------------------- Terraform Files --------------------
+# Local .terraform directories
+**/.terraform/*
+
+# Terraform lockfile (comment this out if you want to commit lock file)
+.terraform.lock.hcl
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfstate.*.backup
+
+# Terraform plan files
+*.tfplan
+*.tfplan.*
+tfplan
+plan.out
+
+# Terraform variable files (containing sensitive data)
 terraform.tfvars
 *.tfvars
+*.auto.tfvars
+*.auto.tfvars.json
+
+# Terraform override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform CLI configuration files
+.terraformrc
+terraform.rc
+
+# -------------------- Sensitive Files --------------------
+# Environment files
+.env
+*.env
+.env.local
+.env.*.local
+
+# SSH Keys & Certificates
 *.pem
 *.key
 *.crt
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+known_hosts
 
-# Terraform files
-.terraform/
-.terraform.lock.hcl
-terraform.tfstate
-terraform.tfstate.backup
-*.tfplan
-*.tfplan.*
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Credentials
-credentials/
-kubeconfigs/
+# Kubeconfig files
 kubeconfig
+kubeconfig.*
+*kubeconfig*
+*.kubeconfig
+config
 
-terraform.tfvars
+# Azure CLI local settings
+.azure/
+
+# Credentials directories
+credentials/
+creds/
+secrets/
+
+# -------------------- Cloud Provider Specific --------------------
+# AWS
+.aws/
+*.aws
+
+# Azure
+.azure/
+*.azure
+
+# Google Cloud
+.gcloud/
+gcloud/
+*.gcp
+service-account-key.json
+
+# -------------------- Build & Dependencies --------------------
+# Dependency directories
+node_modules/
+vendor/
+
+# Build outputs
+dist/
+build/
+out/
+
+# -------------------- IDE & Editor Files --------------------
+# VSCode
+.vscode/
+*.code-workspace
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# -------------------- OS Generated Files --------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.tmp
+*.temp
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# -------------------- Logs & Temporary Files --------------------
+# Log files
+*.log
+logs/
+log/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# Temporary folders
+tmp/
+temp/
+.tmp/
+.temp/
+
+# -------------------- Backup Files --------------------
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+*~
+*.save
+
+# -------------------- Archive Files --------------------
+# Compressed files
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# -------------------- Project Specific --------------------
+# Generated kubeconfig
+./kubeconfig
+
+# Local development scripts
+local-*.sh
+test-*.sh
+debug-*.sh
+
+# Local configuration overrides
+local.tf
+local.tfvars
+dev.tfvars
+staging.tfvars
+prod.tfvars
+
+# Helm charts (if using)
+charts/*/charts/
+charts/*/requirements.lock
+
+# Ansible (if using)
+*.retry
+.ansible/
+
+# -------------------- CI/CD --------------------
+# GitHub Actions local testing
+.github/local/
+
+# Terraform Cloud
+.terraform.d/
+
+# -------------------- Documentation --------------------
+# Generated documentation
+docs/generated/
+*.pdf
+
+# -------------------- END --------------------

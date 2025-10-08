@@ -86,6 +86,28 @@ resource "azurerm_lb_probe" "master_lb_ssh_probe" {
   protocol        = "Tcp"
 }
 
+# Load Balancer Rule for Kubernetes API (6443)
+resource "azurerm_lb_rule" "master_lb_k8s_api" {
+  loadbalancer_id                = azurerm_lb.master_lb.id
+  name                           = "kubernetes-api"
+  protocol                       = "Tcp"
+  frontend_port                  = 6443
+  backend_port                   = 6443
+  frontend_ip_configuration_name = "master-lb-frontend"
+  backend_address_pool_ids       = [azurerm_lb_backend_address_pool.master_lb_backend_1.id]
+  probe_id                       = azurerm_lb_probe.master_lb_k8s_api_probe.id
+  enable_floating_ip             = false
+  disable_outbound_snat          = true
+}
+
+# Health Probe for Kubernetes API
+resource "azurerm_lb_probe" "master_lb_k8s_api_probe" {
+  loadbalancer_id = azurerm_lb.master_lb.id
+  name            = "k8s-api-probe"
+  port            = 6443
+  protocol        = "Tcp"
+}
+
 # NAT Rules for SSH access to each master node
 resource "azurerm_lb_nat_rule" "ssh_master_1" {
   name                           = "ssh-master-1"

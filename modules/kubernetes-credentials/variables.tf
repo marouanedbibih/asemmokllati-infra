@@ -22,3 +22,9 @@ variable "kubeconfig_output_path" {
   type        = string
   default     = "./kubeconfig"
 }
+
+variable "ssh_port" {
+  description = "SSH port to connect to the master node (for load balancer NAT)"
+  type        = number
+  default     = 22
+}

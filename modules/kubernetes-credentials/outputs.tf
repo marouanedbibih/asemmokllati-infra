@@ -11,6 +11,13 @@ output "master_ip" {
   value       = var.master_public_ip
 }
 
+output "kubeconfig_content" {
+  description = "Content of the kubeconfig file as string"
+  value       = base64decode(data.external.kubeconfig_content.result.content)
+  depends_on  = [null_resource.fetch_kubeconfig]
+  sensitive   = true
+}
+
 output "kubeconfig_instructions" {
   description = "Instructions for using the kubeconfig"
   value = <<-EOT
