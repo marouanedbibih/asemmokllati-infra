@@ -116,3 +116,24 @@ variable "argocd_admin_password" {
   type        = string
   sensitive   = true
 }
+
+variable "master_lb_public_ip" {
+  description = "Public IP address of the master load balancer"
+  type        = string
+}
+
+# Load Balancer Backend Pool IDs
+variable "master_lb_backend_pool_1_id" {
+  description = "ID of the master load balancer backend pool 1"
+  type        = string
+}
+
+variable "master_lb_backend_pool_2_id" {
+  description = "ID of the master load balancer backend pool 2"
+  type        = string
+}
+
+variable "master_lb_backend_pool_3_id" {
+  description = "ID of the master load balancer backend pool 3"
+  type        = string
+}

@@ -33,3 +33,53 @@ output "storage_subnet_address_prefix" {
   description = "Address prefix of the storage subnet"
   value       = azurerm_subnet.storage_subnet.address_prefixes[0]
 }
+
+output "nat_gateway_id" {
+  description = "ID of the NAT Gateway"
+  value       = azurerm_nat_gateway.main.id
+}
+
+output "nat_gateway_public_ip" {
+  description = "Public IP address of the NAT Gateway"
+  value       = azurerm_public_ip.nat_gateway_public_ip.ip_address
+}
+
+output "master_lb_id" {
+  description = "ID of the master load balancer"
+  value       = azurerm_lb.master_lb.id
+}
+
+output "master_lb_public_ip" {
+  description = "Public IP address of the master load balancer"
+  value       = azurerm_public_ip.master_lb_public_ip.ip_address
+}
+
+output "master_lb_backend_pool_1_id" {
+  description = "ID of the master load balancer backend pool 1"
+  value       = azurerm_lb_backend_address_pool.master_lb_backend_1.id
+}
+
+output "master_lb_backend_pool_2_id" {
+  description = "ID of the master load balancer backend pool 2"
+  value       = azurerm_lb_backend_address_pool.master_lb_backend_2.id
+}
+
+output "master_lb_backend_pool_3_id" {
+  description = "ID of the master load balancer backend pool 3"
+  value       = azurerm_lb_backend_address_pool.master_lb_backend_3.id
+}
+
+output "master_lb_fqdn" {
+  description = "FQDN of the master load balancer"
+  value       = azurerm_public_ip.master_lb_public_ip.fqdn
+}
+
+output "ingress_endpoints" {
+  description = "Ingress endpoints information"
+  value = {
+    load_balancer_ip = azurerm_public_ip.master_lb_public_ip.ip_address
+    http_port       = 80
+    https_port      = 443
+    dns_setup_info  = "Point your domain A record to: ${azurerm_public_ip.master_lb_public_ip.ip_address}"
+  }
+}

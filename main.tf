@@ -50,6 +50,12 @@ module "compute" {
 
   # Networking
   k3s_cluster_subnet_id = module.networking.k3s_cluster_subnet_id
+  master_lb_public_ip   = module.networking.master_lb_public_ip
+  
+  # Load Balancer Backend Pools
+  master_lb_backend_pool_1_id = module.networking.master_lb_backend_pool_1_id
+  master_lb_backend_pool_2_id = module.networking.master_lb_backend_pool_2_id
+  master_lb_backend_pool_3_id = module.networking.master_lb_backend_pool_3_id
 
   # VM Credentials
   admin_username = var.admin_username
@@ -59,11 +65,11 @@ module "compute" {
   master_vm_size = "Standard_B2ms"
   
   # VMSS Configuration (autoscale-compatible sizes)
-  dev_vm_size       = "Standard_B2s" 
-  prod_vm_size      = "Standard_B2s"
-  dev_min_instances = 2
+  dev_vm_size       = "Standard_B1s" 
+  prod_vm_size      = "Standard_B1s"
+  dev_min_instances = 1
   dev_max_instances = 4
-  prod_min_instances = 2
+  prod_min_instances = 1
   prod_max_instances = 4
   
   # K3s Configuration
@@ -76,16 +82,16 @@ module "compute" {
   depends_on = [module.security, module.networking]
 }
 
-# Kubernetes Credentials Module - Deploy separately after infrastructure
-module "kubernetes_credentials" {
-  source = "./modules/kubernetes-credentials"
+# # Kubernetes Credentials Module - Deploy separately after infrastructure
+# module "kubernetes_credentials" {
+#   source = "./modules/kubernetes-credentials"
 
-  master_public_ip       = module.compute.master_public_ip
-  admin_username         = var.admin_username
-  ssh_private_key_path   = "~/.ssh/id_rsa"
-  kubeconfig_output_path = "${path.module}/kubeconfig"
+#   master_public_ip       = module.compute.master_public_ip
+#   admin_username         = var.admin_username
+#   ssh_private_key_path   = "~/.ssh/id_rsa"
+#   kubeconfig_output_path = "${path.module}/kubeconfig"
 
-  depends_on = [module.compute]
-}
+#   depends_on = [module.compute]
+# }
 
 

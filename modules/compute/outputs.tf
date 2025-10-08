@@ -30,23 +30,17 @@ output "master_vm_names" {
   ]
 }
 
-# Load Balancer Outputs
-output "master_lb_public_ip" {
-  description = "Public IP address of the master load balancer for DNS configuration"
-  value       = azurerm_public_ip.master_lb_public_ip.ip_address
+output "master_1_nic_id" {
+  description = "ID of master 1 network interface"
+  value       = azurerm_network_interface.master_1_nic.id
 }
 
-output "master_lb_fqdn" {
-  description = "FQDN of the master load balancer"
-  value       = azurerm_public_ip.master_lb_public_ip.fqdn
+output "master_2_nic_id" {
+  description = "ID of master 2 network interface"
+  value       = azurerm_network_interface.master_2_nic.id
 }
 
-output "ingress_endpoints" {
-  description = "Ingress endpoints information"
-  value = {
-    load_balancer_ip = azurerm_public_ip.master_lb_public_ip.ip_address
-    http_port       = 80
-    https_port      = 443
-    dns_setup_info  = "Point your domain A record to: ${azurerm_public_ip.master_lb_public_ip.ip_address}"
-  }
+output "master_3_nic_id" {
+  description = "ID of master 3 network interface"
+  value       = azurerm_network_interface.master_3_nic.id
 }
