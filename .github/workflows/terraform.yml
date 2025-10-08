@@ -108,10 +108,30 @@ jobs:
         echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
         echo "✅ Azure environment variables configured"
 
+    # Download previous Terraform state (if exists)
+    - name: Download Terraform State
+      uses: actions/download-artifact@v4
+      with:
+        name: terraform-state
+        path: .
+      continue-on-error: true
+
     # Terraform Init
     - name: Terraform Init
       id: init
-      run: terraform init
+      run: |
+        echo "🔧 Initializing Terraform..."
+        terraform init
+        
+        # Check if state exists and show current resources
+        if [ -f terraform.tfstate ] && [ -s terraform.tfstate ]; then
+          echo "📋 Current Terraform state found"
+          echo "Current resources in state:"
+          terraform state list || true
+          echo "State file size: $(ls -lh terraform.tfstate | awk '{print $5}')"
+        else
+          echo "🆕 No existing state found - this is a new deployment"
+        fi
 
     # Terraform Validate
     - name: Terraform Validate
@@ -133,8 +153,53 @@ jobs:
       id: destroy
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
       run: |
-        echo "💥 Destroying Terraform infrastructure..."
-        terraform destroy -input=false -auto-approve
+        echo "💥 Starting Infrastructure Destruction..."
+        
+        # Check if there are resources to destroy
+        if [ -f terraform.tfstate ] && [ -s terraform.tfstate ]; then
+          echo "📋 Current resources to be destroyed:"
+          terraform state list || true
+          echo ""
+          echo "🔍 Creating destroy plan..."
+          terraform plan -destroy -out=destroy-plan
+          echo ""
+          echo "💥 Executing destruction..."
+          terraform apply -input=false -auto-approve destroy-plan
+          echo "✅ Infrastructure destroyed successfully"
+        else
+          echo "ℹ️ No existing state found - nothing to destroy"
+        fi
+
+    # Save Terraform State (for next run)
+    - name: Upload Terraform State
+      uses: actions/upload-artifact@v4
+      if: always() && (steps.plan.outcome == 'success' || steps.destroy.outcome == 'success')
+      with:
+        name: terraform-state
+        path: |
+          terraform.tfstate*
+          .terraform.lock.hcl
+        retention-days: 90
+        overwrite: true
+
+    # Create State Backup
+    - name: Backup Terraform State
+      if: always() && hashFiles('terraform.tfstate') != ''
+      run: |
+        # Create timestamped backup
+        TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+        COMMIT_SHA="${{ github.sha }}"
+        cp terraform.tfstate "terraform.tfstate.backup.${TIMESTAMP}.${COMMIT_SHA:0:7}"
+        echo "📦 State backed up as: terraform.tfstate.backup.${TIMESTAMP}.${COMMIT_SHA:0:7}"
+
+    # Upload State Backups
+    - name: Upload State Backups  
+      uses: actions/upload-artifact@v4
+      if: always() && hashFiles('terraform.tfstate.backup.*') != ''
+      with:
+        name: terraform-state-backups-${{ github.run_number }}
+        path: terraform.tfstate.backup.*
+        retention-days: 365
 
     # Clean up sensitive files
     - name: Cleanup
@@ -142,4 +207,7 @@ jobs:
       run: |
         rm -f terraform.tfvars
         rm -f tfplan
+        rm -f destroy-plan
+        rm -f ~/.ssh/id_rsa
+        rm -f ~/.ssh/id_rsa.pub
         echo "🧹 Cleanup completed"
