@@ -209,3 +209,22 @@ resource "azurerm_network_interface_backend_address_pool_association" "master_3_
   ip_configuration_name   = "internal"
   backend_address_pool_id = var.master_lb_backend_pool_3_id
 }
+
+# NAT Rule Associations for SSH access
+resource "azurerm_network_interface_nat_rule_association" "master_1_ssh_nat" {
+  network_interface_id  = azurerm_network_interface.master_1_nic.id
+  ip_configuration_name = "internal"
+  nat_rule_id          = var.ssh_master_1_nat_rule_id
+}
+
+resource "azurerm_network_interface_nat_rule_association" "master_2_ssh_nat" {
+  network_interface_id  = azurerm_network_interface.master_2_nic.id
+  ip_configuration_name = "internal"
+  nat_rule_id          = var.ssh_master_2_nat_rule_id
+}
+
+resource "azurerm_network_interface_nat_rule_association" "master_3_ssh_nat" {
+  network_interface_id  = azurerm_network_interface.master_3_nic.id
+  ip_configuration_name = "internal"
+  nat_rule_id          = var.ssh_master_3_nat_rule_id
+}
