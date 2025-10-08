@@ -83,3 +83,19 @@ output "ingress_endpoints" {
     dns_setup_info  = "Point your domain A record to: ${azurerm_public_ip.master_lb_public_ip.ip_address}"
   }
 }
+
+# SSH NAT Rules outputs
+output "ssh_master_1_nat_rule_id" {
+  description = "ID of the SSH NAT rule for master 1"
+  value       = azurerm_lb_nat_rule.ssh_master_1.id
+}
+
+output "ssh_master_2_nat_rule_id" {
+  description = "ID of the SSH NAT rule for master 2"
+  value       = azurerm_lb_nat_rule.ssh_master_2.id
+}
+
+output "ssh_master_3_nat_rule_id" {
+  description = "ID of the SSH NAT rule for master 3"
+  value       = azurerm_lb_nat_rule.ssh_master_3.id
+}

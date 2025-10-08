@@ -137,3 +137,19 @@ variable "master_lb_backend_pool_3_id" {
   description = "ID of the master load balancer backend pool 3"
   type        = string
 }
+
+# SSH NAT Rule IDs
+variable "ssh_master_1_nat_rule_id" {
+  description = "ID of the SSH NAT rule for master 1"
+  type        = string
+}
+
+variable "ssh_master_2_nat_rule_id" {
+  description = "ID of the SSH NAT rule for master 2"
+  type        = string
+}
+
+variable "ssh_master_3_nat_rule_id" {
+  description = "ID of the SSH NAT rule for master 3"
+  type        = string
+}

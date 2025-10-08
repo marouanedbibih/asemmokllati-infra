@@ -56,6 +56,11 @@ module "compute" {
   master_lb_backend_pool_1_id = module.networking.master_lb_backend_pool_1_id
   master_lb_backend_pool_2_id = module.networking.master_lb_backend_pool_2_id
   master_lb_backend_pool_3_id = module.networking.master_lb_backend_pool_3_id
+  
+  # SSH NAT Rules
+  ssh_master_1_nat_rule_id = module.networking.ssh_master_1_nat_rule_id
+  ssh_master_2_nat_rule_id = module.networking.ssh_master_2_nat_rule_id
+  ssh_master_3_nat_rule_id = module.networking.ssh_master_3_nat_rule_id
 
   # VM Credentials
   admin_username = var.admin_username

@@ -85,3 +85,34 @@ resource "azurerm_lb_probe" "master_lb_ssh_probe" {
   port            = 22
   protocol        = "Tcp"
 }
+
+# NAT Rules for SSH access to each master node
+resource "azurerm_lb_nat_rule" "ssh_master_1" {
+  name                           = "ssh-master-1"
+  resource_group_name            = var.resource_group_name
+  loadbalancer_id                = azurerm_lb.master_lb.id
+  frontend_ip_configuration_name = "master-lb-frontend"
+  protocol                       = "Tcp"
+  frontend_port                  = 2221
+  backend_port                   = 22
+}
+
+resource "azurerm_lb_nat_rule" "ssh_master_2" {
+  name                           = "ssh-master-2"
+  resource_group_name            = var.resource_group_name
+  loadbalancer_id                = azurerm_lb.master_lb.id
+  frontend_ip_configuration_name = "master-lb-frontend"
+  protocol                       = "Tcp"
+  frontend_port                  = 2222
+  backend_port                   = 22
+}
+
+resource "azurerm_lb_nat_rule" "ssh_master_3" {
+  name                           = "ssh-master-3"
+  resource_group_name            = var.resource_group_name
+  loadbalancer_id                = azurerm_lb.master_lb.id
+  frontend_ip_configuration_name = "master-lb-frontend"
+  protocol                       = "Tcp"
+  frontend_port                  = 2223
+  backend_port                   = 22
+}
