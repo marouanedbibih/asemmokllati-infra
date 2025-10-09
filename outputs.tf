@@ -23,11 +23,6 @@ output "azure_client_secret" {
   sensitive   = true
 }
 
-output "grafana_admin_password" {
-  description = "Grafana admin password (Sensitive)"
-  value       = var.grafana_admin_password
-  sensitive   = true
-}
 
 # Load Balancer and SSH Access Information
 output "load_balancer_public_ip" {

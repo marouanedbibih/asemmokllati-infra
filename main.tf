@@ -66,6 +66,10 @@ module "compute" {
   admin_username = var.admin_username
   admin_password = var.admin_password
 
+  # K3S Configuration
+  k3s_token = var.k3s_token
+  ssh_public_key_path = "~/.ssh/id_rsa.pub"
+
   # Master VM Configuration
   master_vm_size = "Standard_B2ms"
   
@@ -77,14 +81,17 @@ module "compute" {
   prod_min_instances = 1
   prod_max_instances = 4
   
-  # K3s Configuration
-  k3s_token     = var.k3s_token
-
   # ArgoCD Configuration
   argocd_admin_username = var.argocd_admin_username
   argocd_admin_password = var.argocd_admin_password
 
   depends_on = [module.security, module.networking]
+
+  # Github Configuration
+  github_token = var.github_token
+  github_repo  = var.github_repo
+  github_branch = var.github_branch
+  domain_name  = var.domain_name
 }
 
 # Kubernetes Credentials Module - Connect via Load Balancer SSH to Master 1
@@ -99,9 +106,6 @@ module "kubernetes_credentials" {
 
   depends_on = [module.compute]
 }
-
-# Azure Key Vault secrets configuration removed
-# Secrets can be managed manually or through external tools if needed
 
 
 

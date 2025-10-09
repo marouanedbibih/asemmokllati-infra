@@ -48,18 +48,6 @@ variable "k3s_token" {
   sensitive   = true
 }
 
-variable "k3s_version" {
-  description = "K3S version to install"
-  type        = string
-  default     = "latest"
-}
-
-variable "enable_k3s_dashboard" {
-  description = "Enable Kubernetes dashboard"
-  type        = bool
-  default     = false
-}
-
 variable "ssh_public_key_path" {
   description = "Path to SSH public key file"
   type        = string
@@ -151,5 +139,29 @@ variable "ssh_master_2_nat_rule_id" {
 
 variable "ssh_master_3_nat_rule_id" {
   description = "ID of the SSH NAT rule for master 3"
+  type        = string
+}
+
+# Github Configuration
+variable "github_token" {
+  description = "GitHub token for accessing the repository"
+  type        = string
+  sensitive   = true
+}
+
+variable "github_repo" {
+  description = "GitHub repository in the format 'owner/repo'"
+  type        = string
+}
+
+variable "github_branch" {
+  description = "GitHub branch to deploy"
+  type        = string
+  default     = "main"
+}
+
+# Domain Name for Ingress and Certificates
+variable "domain_name" {
+  description = "Domain name for the cluster (e.g., example.com)"
   type        = string
 }

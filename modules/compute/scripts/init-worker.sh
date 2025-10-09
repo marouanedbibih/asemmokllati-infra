@@ -74,8 +74,8 @@ cat <<EOF > /usr/local/bin/k3s-node-drain.sh
 NODE_NAME="$NODE_NAME"
 KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 if [ -f "\$KUBECONFIG" ]; then
-    /usr/local/bin/kubectl --kubeconfig=\$KUBECONFIG drain \$NODE_NAME --ignore-daemonsets --delete-emptydir-data --force || true
-    /usr/local/bin/kubectl --kubeconfig=\$KUBECONFIG delete node \$NODE_NAME || true
+    /usr/local/bin/k3s kubectl --kubeconfig=\$KUBECONFIG drain \$NODE_NAME --ignore-daemonsets --delete-emptydir-data --force || true
+    /usr/local/bin/k3s kubectl --kubeconfig=\$KUBECONFIG delete node \$NODE_NAME || true
 fi
 EOF
 

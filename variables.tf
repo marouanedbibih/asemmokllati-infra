@@ -3,7 +3,6 @@ variable "k3s_token" {
   type        = string
 }
 
-
 # ArgoCD Configuration
 variable "argocd_admin_username" {
   description = "ArgoCD admin username"
@@ -24,7 +23,6 @@ variable "domain_name" {
   type        = string
   default     = "marouanedbibih.studio"
 }
-
 
 
 # Azure Service Principal Credentials (Sensitive)
@@ -52,13 +50,6 @@ variable "azure_client_secret" {
   sensitive   = true
 }
 
-variable "enable_bitnami_monitoring" {
-  description = "Enable Bitnami monitoring"
-  type        = bool
-  default     = false
-}
-
-
 # Azure Cloud Virtual Machines
 variable "admin_username" {
   description = "Admin username for Azure virtual machines"
@@ -73,37 +64,21 @@ variable "admin_password" {
   default     = "P@ssw0rd123!"
 }
 
-# Rancher Configuration
-variable "rancher_admin_password" {
-  description = "Rancher admin password"
+# Github Configuration
+variable "github_token" {
+  description = "GitHub Personal Access Token"
   type        = string
-  default     = "admin123"
   sensitive   = true
 }
 
-variable "rancher_admin_username" {
-  description = "Rancher admin username"
+variable "github_repo" {
+  description = "GitHub repository in the format 'owner/repo'"
   type        = string
-  default     = "admin"
+  default     = "yourusername/your-repo"
 }
 
-# Grafana Configurations
-variable "grafana_admin_password" {
-  description = "Grafana admin password for Bitnami monitoring"
+variable "github_branch" {
+  description = "GitHub branch to deploy"
   type        = string
-  default     = "admin123"
-  sensitive   = true
-}
-
-variable "grafana_admin_username" {
-  description = "Grafana admin username"
-  type        = string
-  default     = "admin"
-}
-
-# Let’s Encrypt Configuration
-variable "letsencrypt_email" {
-  description = "Email address for Let's Encrypt registration"
-  type        = string
-  default     = "admin@yourdomain.com"
+  default     = "main"
 }

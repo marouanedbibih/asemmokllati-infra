@@ -112,7 +112,7 @@ metadata:
     traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
   rules:
-  - host: argocd.marouanedbibih.studio
+  - host: argocd.${DOMAIN_NAME}
     http:
       paths:
       - path: /
@@ -124,11 +124,45 @@ spec:
               number: 80
   tls:
   - hosts:
-    - argocd.marouanedbibih.studio
+    - argocd.${DOMAIN_NAME}
 EOF
 
 echo "Third master joined the cluster and installed ArgoCD, Cert-Manager, and Ingress."
 
+# Configure GitHub repository credentials for ArgoCD
+GITHUB_TOKEN="${GITHUB_TOKEN}"
+GITHUB_REPO="${GITHUB_REPO}"
+GITHUB_BRANCH="${GITHUB_BRANCH}"
 
-kubectl apply -f https://raw.githubusercontent.com/marouanedbibih/asemmokllati-argocd/main/bootstrap.yaml
+# Wait for ArgoCD server to be ready before applying bootstrap
+kubectl wait --for=condition=available deployment/argocd-server -n argocd --timeout=300s
+
+# Apply the bootstrap configuration from GitHub repository
+if [ -n "$GITHUB_TOKEN" ] && [ -n "$GITHUB_REPO" ] && [ -n "$GITHUB_BRANCH" ]; then
+    echo "Applying ArgoCD bootstrap configuration from GitHub repository: $GITHUB_REPO on branch: $GITHUB_BRANCH"
+    
+    # Download the bootstrap.yaml with authentication if token is provided
+    if [ -n "$GITHUB_TOKEN" ]; then
+        curl -H "Authorization: token $GITHUB_TOKEN" \
+             -H "Accept: application/vnd.github.v3.raw" \
+             -o /tmp/bootstrap.yaml \
+             "https://api.github.com/repos/$GITHUB_REPO/contents/bootstrap.yaml?ref=$GITHUB_BRANCH"
+    else
+        curl -o /tmp/bootstrap.yaml \
+             "https://raw.githubusercontent.com/$GITHUB_REPO/$GITHUB_BRANCH/bootstrap.yaml"
+    fi
+    
+    # Apply the bootstrap configuration
+    kubectl apply -f /tmp/bootstrap.yaml
+    
+    # Clean up
+    rm -f /tmp/bootstrap.yaml
+    
+    echo "ArgoCD bootstrap configuration applied successfully"
+else
+    echo "Warning: GitHub configuration incomplete. Skipping bootstrap application."
+    echo "GITHUB_TOKEN: $([ -n "$GITHUB_TOKEN" ] && echo "provided" || echo "missing")"
+    echo "GITHUB_REPO: $GITHUB_REPO"
+    echo "GITHUB_BRANCH: $GITHUB_BRANCH"
+fi
 

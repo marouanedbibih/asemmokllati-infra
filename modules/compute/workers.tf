@@ -41,7 +41,6 @@ resource "azurerm_linux_virtual_machine_scale_set" "dev_vmss" {
 
   # K3S worker node installation script
   custom_data = base64encode(templatefile("${path.module}/scripts/init-worker.sh", {
-    k3s_version    = var.k3s_version
     k3s_token      = var.k3s_token
     master_ip      = azurerm_network_interface.master_1_nic.private_ip_address
     environment    = "dev"
@@ -98,7 +97,6 @@ resource "azurerm_linux_virtual_machine_scale_set" "prod_vmss" {
 
   # K3S worker node installation script
   custom_data = base64encode(templatefile("${path.module}/scripts/init-worker.sh", {
-    k3s_version    = var.k3s_version
     k3s_token      = var.k3s_token
     master_ip      = azurerm_network_interface.master_1_nic.private_ip_address
     environment    = "prod"
