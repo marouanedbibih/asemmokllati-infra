@@ -225,11 +225,11 @@ jobs:
           plan_output.txt
         retention-days: 30
 
-    # Manual Approval Required
-    - name: ⏸️ Manual Approval Required
+    # Deployment Summary
+    - name: 📋 Deployment Summary
       if: steps.plan.outputs.changes_detected == 'true'
       run: |
-        echo "🚨 MANUAL APPROVAL REQUIRED"
+        echo "� AUTOMATIC DEPLOYMENT WILL PROCEED"
         echo ""
         echo "📋 Deployment Summary:"
         echo "   • Type: ${{ steps.state_analysis.outputs.deployment_type }}"
@@ -239,13 +239,9 @@ jobs:
         echo ""
         echo "📄 Plan Details:"
         echo "   • Plan saved as: terraform-plan-${{ github.ref_name }}-${{ github.run_number }}"
-        echo "   • Review the plan output above before approving"
+        echo "   • Plan will be applied automatically in the next job"
         echo ""
-        echo "⚠️  To proceed with deployment:"
-        echo "   1. Review the Terraform plan output above"
-        echo "   2. Go to Actions tab → This workflow run"
-        echo "   3. Click 'Review deployments' button"
-        echo "   4. Select 'production' environment and approve"
+        echo "✅ No manual approval required - deployment will proceed automatically"
 
     # Output the plan results for the apply job  
     outputs:
@@ -253,13 +249,10 @@ jobs:
       deployment_type: ${{ steps.state_analysis.outputs.deployment_type }}
       resource_count: ${{ steps.state_analysis.outputs.resource_count }}
 
-  # Manual approval job that requires approval environment
+  # Automatic apply job (no manual approval required)
   apply:
     name: 'Apply Infrastructure Changes'
     runs-on: ubuntu-latest
-    environment: 
-      name: production
-      url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
     needs: terraform
     if: |
       needs.terraform.outputs.changes_detected == 'true' &&
