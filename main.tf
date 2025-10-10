@@ -88,10 +88,11 @@ module "compute" {
   depends_on = [module.security, module.networking]
 
   # Github Configuration
-  github_token = var.github_token
-  github_repo  = var.github_repo
-  github_branch = var.github_branch
-  domain_name  = var.domain_name
+  github_token    = var.github_token
+  github_username = var.github_username
+  github_repo     = var.github_repo
+  github_branch   = var.github_branch
+  domain_name     = var.domain_name
 }
 
 # Kubernetes Credentials Module - Connect via Load Balancer SSH to Master 1

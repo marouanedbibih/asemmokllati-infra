@@ -68,20 +68,14 @@ jobs:
         argocd_admin_username = "${{ vars.ARGOCD_ADMIN_USERNAME || 'admin' }}"
         argocd_admin_password = "${{ secrets.ARGOCD_ADMIN_PASSWORD }}"
 
-        # Rancher Configuration  
-        rancher_admin_username = "${{ vars.RANCHER_ADMIN_USERNAME || 'admin' }}"
-        rancher_admin_password = "${{ secrets.RANCHER_ADMIN_PASSWORD }}"
-
-        # Monitoring Configuration
-        enable_bitnami_monitoring = ${{ vars.ENABLE_BITNAMI_MONITORING || 'true' }}
-        grafana_admin_username = "${{ vars.GRAFANA_ADMIN_USERNAME || 'admin' }}"
-        grafana_admin_password = "${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
-
-        # Let's Encrypt Configuration
-        letsencrypt_email = "${{ vars.LETSENCRYPT_EMAIL }}"
-
         # DNS Configuration
         domain_name = "${{ vars.DOMAIN_NAME }}"
+
+        # GitHub Configuration
+        github_token    = "${{ secrets.GH_TOKEN }}"
+        github_username = "${{ vars.GH_USERNAME }}"
+        github_repo     = "${{ vars.GH_REPO }}"
+        github_branch   = "${{ vars.GH_BRANCH }}"
       
         EOF
         
@@ -109,12 +103,25 @@ jobs:
         echo "✅ Azure environment variables configured"
 
     # Download previous Terraform state (if exists)
-    - name: Download Terraform State
+    - name: 📥 Download Previous Terraform State
       uses: actions/download-artifact@v4
       with:
-        name: terraform-state
+        name: terraform-state-${{ github.ref_name }}
         path: .
       continue-on-error: true
+
+    # Verify downloaded state
+    - name: 🔍 Verify State Download
+      id: state_download
+      run: |
+        if [ -f terraform.tfstate ]; then
+          echo "state_found=true" >> $GITHUB_OUTPUT
+          echo "✅ Previous state file found and downloaded"
+          echo "State file size: $(ls -lh terraform.tfstate | awk '{print $5}')"
+        else
+          echo "state_found=false" >> $GITHUB_OUTPUT
+          echo "ℹ️ No previous state file found"
+        fi
 
     # Terraform Init
     - name: Terraform Init
@@ -122,16 +129,45 @@ jobs:
       run: |
         echo "🔧 Initializing Terraform..."
         terraform init
+
+    # Analyze Infrastructure State and Deployment Type
+    - name: 🔍 Analyze Infrastructure State
+      id: state_analysis
+      run: |
+        echo "🔍 Analyzing current infrastructure state..."
         
-        # Check if state exists and show current resources
         if [ -f terraform.tfstate ] && [ -s terraform.tfstate ]; then
-          echo "📋 Current Terraform state found"
-          echo "Current resources in state:"
-          terraform state list || true
-          echo "State file size: $(ls -lh terraform.tfstate | awk '{print $5}')"
+          echo "deployment_type=update" >> $GITHUB_OUTPUT
+          echo "state_exists=true" >> $GITHUB_OUTPUT
+          
+          # Get resource count
+          RESOURCE_COUNT=$(terraform state list | wc -l || echo "0")
+          echo "resource_count=$RESOURCE_COUNT" >> $GITHUB_OUTPUT
+          
+          echo "📋 Existing Infrastructure Found"
+          echo "   • Deployment Type: UPDATE"
+          echo "   • Resources in State: $RESOURCE_COUNT"
+          echo "   • State File Size: $(ls -lh terraform.tfstate | awk '{print $5}')"
+          echo ""
+          echo "Current Resources:"
+          terraform state list || echo "   (No resources found)"
+          
         else
-          echo "🆕 No existing state found - this is a new deployment"
+          echo "deployment_type=first-time" >> $GITHUB_OUTPUT
+          echo "state_exists=false" >> $GITHUB_OUTPUT
+          echo "resource_count=0" >> $GITHUB_OUTPUT
+          
+          echo "🆕 First-Time Deployment Detected"
+          echo "   • Deployment Type: FIRST-TIME"
+          echo "   • No existing state file found"
+          echo "   • This will create new infrastructure"
         fi
+        
+        echo ""
+        echo "📊 Summary:"
+        echo "   • State File Present: $([ -f terraform.tfstate ] && echo 'YES' || echo 'NO')"
+        echo "   • Deployment Type: $([ -f terraform.tfstate ] && echo 'UPDATE' || echo 'FIRST-TIME')"
+        echo "   • Branch: ${{ github.ref_name }}"
 
     # Terraform Validate
     - name: Terraform Validate
@@ -139,26 +175,199 @@ jobs:
       run: terraform validate
 
     # Terraform Plan
-    - name: Terraform Plan
+    # Terraform Plan
+    - name: 📋 Terraform Plan
       id: plan
       if: github.event.inputs.action != 'destroy'
       run: |
-        echo "📋 Creating Terraform execution plan..."
-        terraform plan -input=false -no-color -out=tfplan
+        echo "📋 Running Terraform Plan for ${{ steps.state_analysis.outputs.deployment_type }} deployment..."
+        
+        # Run terraform plan with detailed exit codes
+        terraform plan -detailed-exitcode -no-color -out=tfplan.out > plan_output.txt 2>&1 || PLAN_EXIT_CODE=$?
+        
+        # Check plan results
+        if [ "${PLAN_EXIT_CODE:-0}" -eq 0 ]; then
+          echo "plan_status=no_changes" >> $GITHUB_OUTPUT
+          echo "changes_detected=false" >> $GITHUB_OUTPUT
+          echo "✅ No changes detected - infrastructure is up to date"
+        elif [ "${PLAN_EXIT_CODE:-0}" -eq 2 ]; then
+          echo "plan_status=changes_detected" >> $GITHUB_OUTPUT  
+          echo "changes_detected=true" >> $GITHUB_OUTPUT
+          echo "🔄 Changes detected - plan created successfully"
+        else
+          echo "plan_status=failed" >> $GITHUB_OUTPUT
+          echo "changes_detected=false" >> $GITHUB_OUTPUT
+          echo "❌ Terraform plan failed"
+          cat plan_output.txt
+          exit 1
+        fi
+        
+        # Show plan summary
+        echo ""
+        echo "📊 Plan Summary:"
+        echo "   • Deployment Type: ${{ steps.state_analysis.outputs.deployment_type }}"
+        echo "   • Changes Detected: $([ "${PLAN_EXIT_CODE:-0}" -eq 2 ] && echo 'YES' || echo 'NO')"
+        echo "   • Plan File: tfplan.out"
+        echo ""
+        
+        # Display plan output
+        echo "📄 Plan Output:"
+        cat plan_output.txt
 
-    # Terraform Apply (only on main/master branch or manual workflow)
-    - name: Terraform Apply
-      id: apply
-      if: |
-        steps.plan.outcome == 'success' &&
-        github.event.inputs.action != 'destroy' &&
-        (
-          (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
-          (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
-        )
+    # Save Plan as Artifact
+    - name: 📦 Save Terraform Plan
+      uses: actions/upload-artifact@v4
+      if: steps.plan.outputs.plan_status != 'failed'
+      with:
+        name: terraform-plan-${{ github.ref_name }}-${{ github.run_number }}
+        path: |
+          tfplan.out
+          plan_output.txt
+        retention-days: 30
+
+    # Manual Approval Required
+    - name: ⏸️ Manual Approval Required
+      if: steps.plan.outputs.changes_detected == 'true'
       run: |
-        echo "🚀 Applying Terraform configuration..."
-        terraform apply -input=false -auto-approve tfplan
+        echo "🚨 MANUAL APPROVAL REQUIRED"
+        echo ""
+        echo "📋 Deployment Summary:"
+        echo "   • Type: ${{ steps.state_analysis.outputs.deployment_type }}"
+        echo "   • Branch: ${{ github.ref_name }}"
+        echo "   • Changes: Detected"
+        echo "   • Resources: ${{ steps.state_analysis.outputs.resource_count }} existing"
+        echo ""
+        echo "📄 Plan Details:"
+        echo "   • Plan saved as: terraform-plan-${{ github.ref_name }}-${{ github.run_number }}"
+        echo "   • Review the plan output above before approving"
+        echo ""
+        echo "⚠️  To proceed with deployment:"
+        echo "   1. Review the Terraform plan output above"
+        echo "   2. Go to Actions tab → This workflow run"
+        echo "   3. Click 'Review deployments' button"
+        echo "   4. Select 'production' environment and approve"
+
+    # Output the plan results for the apply job  
+    outputs:
+      changes_detected: ${{ steps.plan.outputs.changes_detected }}
+      deployment_type: ${{ steps.state_analysis.outputs.deployment_type }}
+      resource_count: ${{ steps.state_analysis.outputs.resource_count }}
+
+  # Manual approval job that requires approval environment
+  apply:
+    name: 'Apply Infrastructure Changes'
+    runs-on: ubuntu-latest
+    environment: 
+      name: production
+      url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    needs: terraform
+    if: |
+      needs.terraform.outputs.changes_detected == 'true' &&
+      (
+        (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
+      )
+    
+    steps:
+    # Checkout the repository
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    # Setup Terraform
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+
+    # Recreate terraform.tfvars
+    - name: Create terraform.tfvars
+      run: |
+        cat > terraform.tfvars << 'EOF'
+        # Azure Configuration
+        azure_subscription_id = "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+        azure_tenant_id       = "${{ secrets.AZURE_TENANT_ID }}"
+        azure_client_id       = "${{ secrets.AZURE_CLIENT_ID }}"
+        azure_client_secret   = "${{ secrets.AZURE_CLIENT_SECRET }}"
+
+        # K3s Configuration
+        k3s_token = "${{ secrets.K3S_TOKEN }}"
+
+        # VM Configuration
+        admin_username = "${{ vars.ADMIN_USERNAME || 'azureuser' }}"
+        admin_password = "${{ secrets.ADMIN_PASSWORD }}"
+
+        # ArgoCD Configuration
+        argocd_admin_username = "${{ vars.ARGOCD_ADMIN_USERNAME || 'admin' }}"
+        argocd_admin_password = "${{ secrets.ARGOCD_ADMIN_PASSWORD }}"
+
+        # DNS Configuration
+        domain_name = "${{ vars.DOMAIN_NAME }}"
+
+        # GitHub Configuration
+        github_token    = "${{ secrets.GH_TOKEN }}"
+        github_username = "${{ vars.GH_USERNAME }}"
+        github_repo     = "${{ vars.GH_REPO }}"
+        github_branch   = "${{ vars.GH_BRANCH }}"
+        EOF
+
+    # Setup Azure Environment
+    - name: Setup Azure Environment
+      run: |
+        export ARM_CLIENT_ID="${{ secrets.AZURE_CLIENT_ID }}"
+        export ARM_CLIENT_SECRET="${{ secrets.AZURE_CLIENT_SECRET }}"
+        export ARM_SUBSCRIPTION_ID="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+        export ARM_TENANT_ID="${{ secrets.AZURE_TENANT_ID }}"
+
+    # Download Terraform state
+    - name: 📥 Download Terraform State
+      uses: actions/download-artifact@v4
+      with:
+        name: terraform-state-${{ github.ref_name }}
+        path: .
+      continue-on-error: true
+
+    # Download Terraform plan
+    - name: 📥 Download Terraform Plan
+      uses: actions/download-artifact@v4
+      with:
+        name: terraform-plan-${{ github.ref_name }}-${{ github.run_number }}
+        path: .
+
+    # Initialize Terraform
+    - name: Terraform Init
+      run: terraform init
+
+    # Terraform Apply (using approved plan)
+    - name: 🚀 Terraform Apply
+      id: apply
+      run: |
+        echo "🚀 Applying Terraform changes using saved plan..."
+        echo "   • Deployment Type: ${{ needs.terraform.outputs.deployment_type }}"
+        echo "   • Plan File: tfplan.out"
+        echo "   • Resource Count (before): ${{ needs.terraform.outputs.resource_count }}"
+        echo ""
+        
+        # Verify plan file exists
+        if [ ! -f tfplan.out ]; then
+          echo "❌ Plan file 'tfplan.out' not found!"
+          echo "Available files:"
+          ls -la
+          exit 1
+        fi
+        
+        echo "✅ Plan file verified, proceeding with apply..."
+        echo ""
+        
+        # Apply using the saved plan
+        terraform apply -auto-approve tfplan.out
+        
+        echo ""
+        echo "🎉 Terraform apply completed successfully!"
+        
+        # Show final resource count
+        FINAL_RESOURCE_COUNT=$(terraform state list | wc -l || echo "0")
+        echo "   • Final Resource Count: $FINAL_RESOURCE_COUNT"
+        echo "   • Changes Applied: YES"
 
     # Terraform Destroy (only on manual workflow)
     - name: Terraform Destroy
@@ -182,27 +391,75 @@ jobs:
           echo "ℹ️ No existing state found - nothing to destroy"
         fi
 
+    # Analyze State Before Upload
+    - name: � Analyze Updated State
+      if: always() && (steps.apply.outcome == 'success' || steps.destroy.outcome == 'success')
+      run: |
+        echo "� Analyzing updated Terraform state..."
+        
+        # Check if state file exists and has content
+        if [ -f terraform.tfstate ]; then
+          STATE_SIZE=$(stat -c%s terraform.tfstate 2>/dev/null || echo "0")
+          RESOURCE_COUNT=$(terraform state list | wc -l 2>/dev/null || echo "0")
+          
+          echo "   • State File Size: $(ls -lh terraform.tfstate | awk '{print $5}' 2>/dev/null || echo 'Unknown')"
+          echo "   • Resource Count: $RESOURCE_COUNT"
+          echo "   • Branch: ${{ github.ref_name }}"
+          echo "   • Commit: ${{ github.sha }}"
+          
+          if [ "$STATE_SIZE" -gt 0 ]; then
+            echo "✅ Valid state file found, ready for upload"
+          else
+            echo "⚠️ State file is empty, uploading anyway for consistency"
+          fi
+        else
+          echo "ℹ️ No state file found (likely after destroy operation)"
+        fi
+
     # Save Terraform State (for next run)
-    - name: Upload Terraform State
+    - name: 📤 Upload Updated Terraform State
       uses: actions/upload-artifact@v4
-      if: always() && (steps.plan.outcome == 'success' || steps.destroy.outcome == 'success')
+      if: always() && (steps.apply.outcome == 'success' || steps.destroy.outcome == 'success')
       with:
-        name: terraform-state
+        name: terraform-state-${{ github.ref_name }}
         path: |
           terraform.tfstate*
           .terraform.lock.hcl
         retention-days: 90
         overwrite: true
 
-    # Create State Backup
-    - name: Backup Terraform State
+    # Create State Backup with Timestamp
+    - name: 📦 Backup Terraform State with Timestamp
       if: always() && hashFiles('terraform.tfstate') != ''
       run: |
+        echo "📦 Creating timestamped backup of Terraform state..."
+        
         # Create timestamped backup
         TIMESTAMP=$(date +%Y%m%d_%H%M%S)
         COMMIT_SHA="${{ github.sha }}"
-        cp terraform.tfstate "terraform.tfstate.backup.${TIMESTAMP}.${COMMIT_SHA:0:7}"
-        echo "📦 State backed up as: terraform.tfstate.backup.${TIMESTAMP}.${COMMIT_SHA:0:7}"
+        DEPLOYMENT_TYPE="${{ needs.terraform.outputs.deployment_type }}"
+        
+        # Create descriptive backup filename
+        BACKUP_NAME="terraform.tfstate.backup.${TIMESTAMP}.${COMMIT_SHA:0:7}.${DEPLOYMENT_TYPE}"
+        cp terraform.tfstate "${BACKUP_NAME}"
+        
+        # Backup metadata
+        echo "   • Backup created: ${BACKUP_NAME}"
+        echo "   • Timestamp: $(date)"
+        echo "   • Commit: ${{ github.sha }}"
+        echo "   • Deployment Type: ${DEPLOYMENT_TYPE}"
+        echo "   • Branch: ${{ github.ref_name }}"
+        echo "   • File Size: $(ls -lh ${BACKUP_NAME} | awk '{print $5}')"
+        
+        # Verify backup integrity
+        if [ -f "${BACKUP_NAME}" ]; then
+          RESOURCE_COUNT=$(terraform state list | wc -l 2>/dev/null || echo "0")
+          echo "   • Resource Count: ${RESOURCE_COUNT}"
+          echo "✅ State backup completed successfully"
+        else
+          echo "❌ Backup creation failed"
+          exit 1
+        fi
 
     # Upload State Backups
     - name: Upload State Backups  

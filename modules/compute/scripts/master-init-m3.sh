@@ -133,6 +133,35 @@ echo "Third master joined the cluster and installed ArgoCD, Cert-Manager, and In
 GITHUB_TOKEN="${GITHUB_TOKEN}"
 GITHUB_REPO="${GITHUB_REPO}"
 GITHUB_BRANCH="${GITHUB_BRANCH}"
+GITHUB_USERNAME="${GITHUB_USERNAME}"
+
+# Create ArgoCD repository secret for GitHub access
+if [ -n "$GITHUB_TOKEN" ] && [ -n "$GITHUB_REPO" ] && [ -n "$GITHUB_USERNAME" ]; then
+    echo "Creating ArgoCD repository secret for GitHub access..."
+    
+    # Delete existing secret if it exists
+    kubectl delete secret argocd-repo-secret -n argocd --ignore-not-found=true
+    
+    # Create the repository secret with proper labels for ArgoCD
+    kubectl create secret generic argocd-repo-secret \
+        --from-literal=type=git \
+        --from-literal=url=https://github.com/$GITHUB_REPO.git \
+        --from-literal=username=$GITHUB_USERNAME \
+        --from-literal=password=$GITHUB_TOKEN \
+        -n argocd
+    
+    # Label the secret so ArgoCD recognizes it as a repository secret
+    kubectl label secret argocd-repo-secret \
+        argocd.argoproj.io/secret-type=repository \
+        -n argocd
+    
+    echo "ArgoCD repository secret created successfully"
+else
+    echo "Warning: GitHub credentials incomplete. Repository secret not created."
+    echo "GITHUB_TOKEN: $([ -n "$GITHUB_TOKEN" ] && echo "provided" || echo "missing")"
+    echo "GITHUB_REPO: $GITHUB_REPO"
+    echo "GITHUB_USERNAME: $GITHUB_USERNAME"
+fi
 
 # Wait for ArgoCD server to be ready before applying bootstrap
 kubectl wait --for=condition=available deployment/argocd-server -n argocd --timeout=300s

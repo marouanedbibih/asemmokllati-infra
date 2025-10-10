@@ -71,6 +71,12 @@ variable "github_token" {
   sensitive   = true
 }
 
+variable "github_username" {
+  description = "GitHub username"
+  type        = string
+  default     = "yourusername"
+}
+
 variable "github_repo" {
   description = "GitHub repository in the format 'owner/repo'"
   type        = string

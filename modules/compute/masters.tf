@@ -188,6 +188,7 @@ resource "azurerm_linux_virtual_machine" "k3s_master_3" {
     ARGOCD_PASSWORD  = var.argocd_admin_password
     DOMAIN_NAME      = var.domain_name
     GITHUB_TOKEN    = var.github_token
+    GITHUB_USERNAME = var.github_username
     GITHUB_REPO     = var.github_repo
     GITHUB_BRANCH   = var.github_branch
   }))
