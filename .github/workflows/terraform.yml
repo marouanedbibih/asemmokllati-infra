@@ -240,95 +240,15 @@ jobs:
         echo ""
         echo "✅ No manual approval required - deployment will proceed automatically"
 
-  # Automatic apply job (no manual approval required)
-  apply:
-    name: 'Apply Infrastructure Changes'
-    runs-on: ubuntu-latest
-    needs: terraform
-    if: |
-      needs.terraform.outputs.changes_detected == 'true' &&
-      (
-        (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
-        (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
-      )
-    
-    steps:
-    # Checkout the repository
-    - name: Checkout
-      uses: actions/checkout@v4
-
-    # Setup Terraform
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
-      with:
-        terraform_version: ${{ env.TF_VERSION }}
-
-    # Recreate terraform.tfvars
-    - name: Create terraform.tfvars
-      run: |
-        cat > terraform.tfvars << 'EOF'
-        # Azure Configuration
-        azure_subscription_id = "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-        azure_tenant_id       = "${{ secrets.AZURE_TENANT_ID }}"
-        azure_client_id       = "${{ secrets.AZURE_CLIENT_ID }}"
-        azure_client_secret   = "${{ secrets.AZURE_CLIENT_SECRET }}"
-
-        # K3s Configuration
-        k3s_token = "${{ secrets.K3S_TOKEN }}"
-
-        # VM Configuration
-        admin_username = "${{ vars.ADMIN_USERNAME || 'azureuser' }}"
-        admin_password = "${{ secrets.ADMIN_PASSWORD }}"
-
-        # ArgoCD Configuration
-        argocd_admin_username = "${{ vars.ARGOCD_ADMIN_USERNAME || 'admin' }}"
-        argocd_admin_password = "${{ secrets.ARGOCD_ADMIN_PASSWORD }}"
-
-        # DNS Configuration
-        domain_name = "${{ vars.DOMAIN_NAME }}"
-
-        # GitHub Configuration
-        github_token    = "${{ secrets.GH_TOKEN }}"
-        github_username = "${{ vars.GH_USERNAME }}"
-        github_repo     = "${{ vars.GH_REPO }}"
-        github_branch   = "${{ vars.GH_BRANCH }}"
-        EOF
-
-    # Setup Azure Environment
-    - name: Setup Azure Environment
-      run: |
-        export ARM_CLIENT_ID="${{ secrets.AZURE_CLIENT_ID }}"
-        export ARM_CLIENT_SECRET="${{ secrets.AZURE_CLIENT_SECRET }}"
-        export ARM_SUBSCRIPTION_ID="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-        export ARM_TENANT_ID="${{ secrets.AZURE_TENANT_ID }}"
-
-    # Download Terraform state
-    - name: 📥 Download Terraform State
-      uses: actions/download-artifact@v4
-      with:
-        name: terraform-state-${{ github.ref_name }}
-        path: .
-      continue-on-error: true
-
-    # Download Terraform plan
-    - name: 📥 Download Terraform Plan
-      uses: actions/download-artifact@v4
-      with:
-        name: terraform-plan-${{ github.ref_name }}-${{ github.run_number }}
-        path: .
-
-    # Initialize Terraform
-    - name: Terraform Init
-      run: terraform init
-
-    # Terraform Apply (using approved plan)
+    # Automatic apply step (merged from apply job)
     - name: 🚀 Terraform Apply
       id: apply
+      if: steps.plan.outputs.changes_detected == 'true'
       run: |
         echo "🚀 Applying Terraform changes using saved plan..."
-        echo "   • Deployment Type: ${{ needs.terraform.outputs.deployment_type }}"
+        echo "   • Deployment Type: ${{ steps.state_analysis.outputs.deployment_type }}"
         echo "   • Plan File: tfplan.out"
-        echo "   • Resource Count (before): ${{ needs.terraform.outputs.resource_count }}"
+        echo "   • Resource Count (before): ${{ steps.state_analysis.outputs.resource_count }}"
         echo ""
         
         # Verify plan file exists
