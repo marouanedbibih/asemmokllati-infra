@@ -26,7 +26,7 @@ env:
 
 jobs:
   terraform:
-    name: 'Terraform'
+    name: 'Terraform Infrastructure Deployment'
     runs-on: ubuntu-latest
     environment: production
     
@@ -76,7 +76,6 @@ jobs:
         github_username = "${{ vars.GH_USERNAME }}"
         github_repo     = "${{ vars.GH_REPO }}"
         github_branch   = "${{ vars.GH_BRANCH }}"
-      
         EOF
         
         echo "✅ terraform.tfvars created successfully"
@@ -175,10 +174,8 @@ jobs:
       run: terraform validate
 
     # Terraform Plan
-    # Terraform Plan
     - name: 📋 Terraform Plan
       id: plan
-      if: github.event.inputs.action != 'destroy'
       run: |
         echo "📋 Running Terraform Plan for ${{ steps.state_analysis.outputs.deployment_type }} deployment..."
         
@@ -216,8 +213,8 @@ jobs:
 
     # Save Plan as Artifact
     - name: 📦 Save Terraform Plan
-      uses: actions/upload-artifact@v4
       if: steps.plan.outputs.plan_status != 'failed'
+      uses: actions/upload-artifact@v4
       with:
         name: terraform-plan-${{ github.ref_name }}-${{ github.run_number }}
         path: |
@@ -229,7 +226,7 @@ jobs:
     - name: 📋 Deployment Summary
       if: steps.plan.outputs.changes_detected == 'true'
       run: |
-        echo "� AUTOMATIC DEPLOYMENT WILL PROCEED"
+        echo "🚀 AUTOMATIC DEPLOYMENT WILL PROCEED"
         echo ""
         echo "📋 Deployment Summary:"
         echo "   • Type: ${{ steps.state_analysis.outputs.deployment_type }}"
@@ -239,15 +236,9 @@ jobs:
         echo ""
         echo "📄 Plan Details:"
         echo "   • Plan saved as: terraform-plan-${{ github.ref_name }}-${{ github.run_number }}"
-        echo "   • Plan will be applied automatically in the next job"
+        echo "   • Plan will be applied automatically"
         echo ""
         echo "✅ No manual approval required - deployment will proceed automatically"
-
-    # Output the plan results for the apply job  
-    outputs:
-      changes_detected: ${{ steps.plan.outputs.changes_detected }}
-      deployment_type: ${{ steps.state_analysis.outputs.deployment_type }}
-      resource_count: ${{ steps.state_analysis.outputs.resource_count }}
 
   # Automatic apply job (no manual approval required)
   apply:
@@ -386,7 +377,7 @@ jobs:
 
     # Analyze State Before Upload
     - name: � Analyze Updated State
-      if: always() && (steps.apply.outcome == 'success' || steps.destroy.outcome == 'success')
+      if: always() && (success() || failure())
       run: |
         echo "� Analyzing updated Terraform state..."
         
@@ -412,7 +403,7 @@ jobs:
     # Save Terraform State (for next run)
     - name: 📤 Upload Updated Terraform State
       uses: actions/upload-artifact@v4
-      if: always() && (steps.apply.outcome == 'success' || steps.destroy.outcome == 'success')
+      if: always() && (success() || failure())
       with:
         name: terraform-state-${{ github.ref_name }}
         path: |
@@ -430,7 +421,7 @@ jobs:
         # Create timestamped backup
         TIMESTAMP=$(date +%Y%m%d_%H%M%S)
         COMMIT_SHA="${{ github.sha }}"
-        DEPLOYMENT_TYPE="${{ needs.terraform.outputs.deployment_type }}"
+        DEPLOYMENT_TYPE="${{ steps.state_analysis.outputs.deployment_type }}"
         
         # Create descriptive backup filename
         BACKUP_NAME="terraform.tfstate.backup.${TIMESTAMP}.${COMMIT_SHA:0:7}.${DEPLOYMENT_TYPE}"
@@ -468,7 +459,7 @@ jobs:
       if: always()
       run: |
         rm -f terraform.tfvars
-        rm -f tfplan
+        rm -f tfplan.out
         rm -f destroy-plan
         rm -f ~/.ssh/id_rsa
         rm -f ~/.ssh/id_rsa.pub
