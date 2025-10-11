@@ -109,7 +109,7 @@ jobs:
         path: .
       continue-on-error: true
 
-    # Verify downloaded state
+    # Verify downloaded state (handle first-time deployment)
     - name: 🔍 Verify State Download
       id: state_download
       run: |
@@ -119,7 +119,7 @@ jobs:
           echo "State file size: $(ls -lh terraform.tfstate | awk '{print $5}')"
         else
           echo "state_found=false" >> $GITHUB_OUTPUT
-          echo "ℹ️ No previous state file found"
+          echo "🆕 No previous state file found. This is expected for first-time deployments."
         fi
 
     # Terraform Init
@@ -253,17 +253,19 @@ jobs:
         
         # Verify plan file exists
         if [ ! -f tfplan.out ]; then
-          echo "❌ Plan file 'tfplan.out' not found!"
-          echo "Available files:"
-          ls -la
-          exit 1
+          if [ "${{ steps.state_analysis.outputs.deployment_type }}" = "first-time" ]; then
+            echo "🆕 No plan file found. This is expected for first-time deployments. Running apply without a saved plan."
+            terraform apply -auto-approve
+          else
+            echo "❌ Plan file 'tfplan.out' not found!"
+            echo "Available files:"
+            ls -la
+            exit 1
+          fi
+        else
+          echo "✅ Plan file verified, proceeding with apply..."
+          terraform apply -auto-approve tfplan.out
         fi
-        
-        echo "✅ Plan file verified, proceeding with apply..."
-        echo ""
-        
-        # Apply using the saved plan
-        terraform apply -auto-approve tfplan.out
         
         echo ""
         echo "🎉 Terraform apply completed successfully!"
