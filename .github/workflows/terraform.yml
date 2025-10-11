@@ -243,28 +243,26 @@ jobs:
     # Automatic apply step (merged from apply job)
     - name: 🚀 Terraform Apply
       id: apply
-      if: steps.plan.outputs.changes_detected == 'true'
+      if: steps.plan.outputs.changes_detected == 'true' || steps.state_analysis.outputs.deployment_type == 'first-time'
       run: |
-        echo "🚀 Applying Terraform changes using saved plan..."
+        echo "🚀 Applying Terraform changes..."
         echo "   • Deployment Type: ${{ steps.state_analysis.outputs.deployment_type }}"
         echo "   • Plan File: tfplan.out"
         echo "   • Resource Count (before): ${{ steps.state_analysis.outputs.resource_count }}"
         echo ""
         
-        # Verify plan file exists
-        if [ ! -f tfplan.out ]; then
-          if [ "${{ steps.state_analysis.outputs.deployment_type }}" = "first-time" ]; then
-            echo "🆕 No plan file found. This is expected for first-time deployments. Running apply without a saved plan."
-            terraform apply -auto-approve
-          else
-            echo "❌ Plan file 'tfplan.out' not found!"
-            echo "Available files:"
-            ls -la
-            exit 1
-          fi
-        else
+        # First-time deployment: run apply without plan file
+        if [ "${{ steps.state_analysis.outputs.deployment_type }}" = "first-time" ]; then
+          echo "🆕 First-time deployment detected. Running 'terraform apply -auto-approve' without a saved plan."
+          terraform apply -auto-approve
+        elif [ -f tfplan.out ]; then
           echo "✅ Plan file verified, proceeding with apply..."
           terraform apply -auto-approve tfplan.out
+        else
+          echo "❌ Plan file 'tfplan.out' not found!"
+          echo "Available files:"
+          ls -la
+          exit 1
         fi
         
         echo ""
