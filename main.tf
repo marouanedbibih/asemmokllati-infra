@@ -76,10 +76,10 @@ module "compute" {
   # VMSS Configuration (autoscale-compatible sizes)
   dev_vm_size       = "Standard_B1s" 
   prod_vm_size      = "Standard_B1s"
-  dev_min_instances = 1
-  dev_max_instances = 3
-  prod_min_instances = 1
-  prod_max_instances = 3
+  dev_min_instances = 2
+  dev_max_instances = 5
+  prod_min_instances = 2
+  prod_max_instances = 5
   
   # ArgoCD Configuration
   argocd_admin_username = var.argocd_admin_username
