@@ -101,26 +101,9 @@ jobs:
         echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
         echo "✅ Azure environment variables configured"
 
-    # Download previous Terraform state (if exists)
-    - name: 📥 Download Previous Terraform State
-      uses: actions/download-artifact@v4
-      with:
-        name: terraform-state-${{ github.ref_name }}
-        path: .
-      continue-on-error: true
-
-    # Verify downloaded state (handle first-time deployment)
-    - name: 🔍 Verify State Download
-      id: state_download
-      run: |
-        if [ -f terraform.tfstate ]; then
-          echo "state_found=true" >> $GITHUB_OUTPUT
-          echo "✅ Previous state file found and downloaded"
-          echo "State file size: $(ls -lh terraform.tfstate | awk '{print $5}')"
-        else
-          echo "state_found=false" >> $GITHUB_OUTPUT
-          echo "🆕 No previous state file found. This is expected for first-time deployments."
-        fi
+    # Azure backend handles state automatically. No need to download/upload state artifacts.
+    - name: Info - Azure Backend State
+      run: echo "Terraform state will be stored and retrieved from Azure Blob Storage automatically."
 
     # Terraform Init
     - name: Terraform Init
@@ -320,59 +303,17 @@ jobs:
           echo "ℹ️ No state file found (likely after destroy operation)"
         fi
 
-    # Save Terraform State (for next run)
-    - name: 📤 Upload Updated Terraform State
-      uses: actions/upload-artifact@v4
-      if: always() && (success() || failure())
-      with:
-        name: terraform-state-${{ github.ref_name }}
-        path: |
-          terraform.tfstate*
-          .terraform.lock.hcl
-        retention-days: 90
-        overwrite: true
+    # Azure backend handles state automatically. No need to upload state artifacts.
+    - name: Info - Azure Backend State Upload
+      run: echo "Terraform state is automatically managed in Azure Blob Storage."
 
-    # Create State Backup with Timestamp
-    - name: 📦 Backup Terraform State with Timestamp
-      if: always() && hashFiles('terraform.tfstate') != ''
-      run: |
-        echo "📦 Creating timestamped backup of Terraform state..."
-        
-        # Create timestamped backup
-        TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-        COMMIT_SHA="${{ github.sha }}"
-        DEPLOYMENT_TYPE="${{ steps.state_analysis.outputs.deployment_type }}"
-        
-        # Create descriptive backup filename
-        BACKUP_NAME="terraform.tfstate.backup.${TIMESTAMP}.${COMMIT_SHA:0:7}.${DEPLOYMENT_TYPE}"
-        cp terraform.tfstate "${BACKUP_NAME}"
-        
-        # Backup metadata
-        echo "   • Backup created: ${BACKUP_NAME}"
-        echo "   • Timestamp: $(date)"
-        echo "   • Commit: ${{ github.sha }}"
-        echo "   • Deployment Type: ${DEPLOYMENT_TYPE}"
-        echo "   • Branch: ${{ github.ref_name }}"
-        echo "   • File Size: $(ls -lh ${BACKUP_NAME} | awk '{print $5}')"
-        
-        # Verify backup integrity
-        if [ -f "${BACKUP_NAME}" ]; then
-          RESOURCE_COUNT=$(terraform state list | wc -l 2>/dev/null || echo "0")
-          echo "   • Resource Count: ${RESOURCE_COUNT}"
-          echo "✅ State backup completed successfully"
-        else
-          echo "❌ Backup creation failed"
-          exit 1
-        fi
+    # Azure backend handles state automatically. No need to backup state artifacts.
+    - name: Info - Azure Backend State Backup
+      run: echo "Terraform state backup is managed by Azure Blob Storage."
 
-    # Upload State Backups
-    - name: Upload State Backups  
-      uses: actions/upload-artifact@v4
-      if: always() && hashFiles('terraform.tfstate.backup.*') != ''
-      with:
-        name: terraform-state-backups-${{ github.run_number }}
-        path: terraform.tfstate.backup.*
-        retention-days: 365
+    # Azure backend handles state automatically. No need to upload state backups.
+    - name: Info - Azure Backend State Backups
+      run: echo "Terraform state backups are managed by Azure Blob Storage."
 
     # Clean up sensitive files
     - name: Cleanup
