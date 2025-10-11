@@ -6,8 +6,8 @@
 # Local .terraform directories
 **/.terraform/*
 
-# Terraform lockfile (comment this out if you want to commit lock file)
-.terraform.lock.hcl
+# Terraform lockfile (uncomment to commit lock file)
+# .terraform.lock.hcl
 
 # Terraform state files
 *.tfstate
